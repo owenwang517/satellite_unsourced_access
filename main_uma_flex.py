@@ -15,11 +15,11 @@ torch.manual_seed(77)
 np.random.seed(1)
 
 args = args_parser()
-args.nc = 1
+args.nc = 4
 args.nt = int(args.len_code/args.nc)
 
 num_sim = 10000
-pe_sum = 0
+pes_sum = 0
 pec_sum = 0
 for idx_sim in range(num_sim):
     # generate channel
@@ -99,8 +99,8 @@ for idx_sim in range(num_sim):
     R_ang = R @ f_all.T
 
     # codewords detectopm
-    error = 0
-    act_code_hat = torch.zeros(args.num_seg,args.num_aue,dtype=torch.long)
+    pec = 0
+    act_code_hat = torch.zeros(args.num_seg,args.num_aue+5,dtype=torch.long)
     act_code_num = torch.zeros(args.num_seg,dtype=torch.int)
     channel_ang_hat = torch.zeros((args.num_seg,args.num_blk, num_code, args.Nx*args.Ny),dtype=torch.complex64).cuda()
 
@@ -109,18 +109,20 @@ for idx_sim in range(num_sim):
         channel_ang_hat[idx_seg] = channel_hat_tmp
 
         belief = belief.mean(0)
-        act_code_be = torch.where(belief > 0.5)
+        act_code_be = torch.where(belief > 0.8)
         act_code_be = sorted(set(act_code_be[0].cpu().numpy()))
 
-        error += len(set(message[idx_seg].flatten()) - set(act_code_be))/args.num_aue/args.num_seg
+        pec_md = len(set(message[idx_seg].flatten()) - set(act_code_be))/args.num_aue/args.num_seg
+        pec_fa = len(set(act_code_be) - set(message[idx_seg].flatten()))/args.num_aue/args.num_seg
+        pec += pec_md + pec_fa
         act_code_num[idx_seg] = int(len(act_code_be))
         act_code_hat[idx_seg,:int(len(act_code_be))] = torch.tensor(list(act_code_be))
 
-    pec_sum += error
-    channel_spa_hat = channel_ang_hat @ f_all.conj()
-    ce_nmse = (channel_spa_hat.cpu() - torch.tensor(channel_mtx)).abs().square().sum((0,1,2,3))/torch.tensor(channel_mtx).abs().square().sum((0,1,2,3))
-    ce_nmse = 10 * torch.log10(ce_nmse)
-    print('sim = %4d, code error prob = %6.6f, average_pc = %6.6f, nmse = %6.6f' % (idx_sim, error, pec_sum/(idx_sim+1), ce_nmse))
+    pec_sum += pec
+    # channel_spa_hat = channel_ang_hat @ f_all.conj()
+    # ce_nmse = (channel_spa_hat.cpu() - torch.tensor(channel_mtx)).abs().square().sum((0,1,2,3))/torch.tensor(channel_mtx).abs().square().sum((0,1,2,3))
+    # ce_nmse = 10 * torch.log10(ce_nmse)
+    print('sim = %8d, code error prob = %8.8f, average_pc = %8.8f' % (idx_sim, pec, pec_sum/(idx_sim+1)))
 
     '''
     channel_hat: num_seg * num_blk * num_code * NxNy (S * G * K * N)
@@ -172,12 +174,13 @@ for idx_sim in range(num_sim):
         if flag == 0:
             error_fa += 1
     
-    pmd = error_md/args.num_aue
-    pfa = error_fa/message_hat.shape[0]
-    pe = pmd + pfa
-    pe_sum += pe
+    # error probability of stitching
+    pes_md = error_md/args.num_aue
+    pes_fa = error_fa/message_hat.shape[0]
+    pes = pes_md + pes_fa
+    pes_sum += pes
 
-    print('sim = %4d, code error prob= %4.4f, stitch error prob = %4.4f, average pe = %4.4f' % (idx_sim, error, pe, pe_sum/(idx_sim+1)))
+    print('sim = %6d, code error prob= %6.6f, stitch error prob = %6.6f, average pe = %6.6f' % (idx_sim, pec, pes, pes_sum/(idx_sim+1)))
 assert False
 
 

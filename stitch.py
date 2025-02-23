@@ -54,7 +54,7 @@ def codeword_stitch(args, act_code_hat, act_code_num, channel_hat):
             top_indices = indices[:(ka_hat-kd)]
             cost[kd:] = cost[top_indices]
             new_code = act_code_hat[idx_seg,top_indices.cpu()]
-            act_code_hat[idx_seg,kd:] = new_code
+            act_code_hat[idx_seg,kd:kd+len(new_code)] = new_code
             # cost[i:] = cost[max_ix].expand_as(cost[i:])
             ans_pos = linear_sum_assignment(cost.cpu())
 
