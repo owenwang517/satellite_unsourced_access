@@ -11,11 +11,12 @@ from utils.hungary import *
 from scipy.optimize import linear_sum_assignment
 from stitch import *
 
-torch.manual_seed(77)
-np.random.seed(1)
+torch.manual_seed(777)
+np.random.seed(777)
 
 args = args_parser()
-args.nc = 4
+args.snr_dB = 0
+args.nc = 2
 args.nt = int(args.len_code/args.nc)
 
 num_sim = 10000
@@ -86,7 +87,7 @@ for idx_sim in range(num_sim):
     noise = np.sqrt(noise_pow / 2) * (noise_real + 1j * noise_imag)
     R = R.reshape((args.num_seg, args.num_blk, args.nc*args.nt, args.Nx*args.Ny))
     noise = noise.reshape(*R.shape)
-    # R = R + noise
+    R = R + noise
 
 
     R = torch.tensor(R, dtype=torch.complex64).cuda()
@@ -142,13 +143,12 @@ for idx_sim in range(num_sim):
     # ch_tmp = np.abs(channel_hat[0,:,act_code_hat[0,5],:]).reshape(-1,args.Nx*args.Ny).numpy()
     # np.savetxt('channel.csv', ch_tmp, delimiter=',')
 
-    # if idx_sim == 1:
-    #     # visualize the estimated channel
-    #     for idx_seg in range(args.num_seg):
-    #         for idx_code in range(act_code_num[idx_seg]):
-    #             code = act_code_hat[idx_seg,idx_code]
-    #             ch_tmp = channel_ang_hat[idx_seg,:,code,:].numpy()
-    #             plt.imsave('./channel_img/channel_seg%d_%d.png' % (idx_seg, code), np.abs(ch_tmp), cmap='viridis')
+
+    # for idx_seg in range(args.num_seg):
+    #     for idx_code in range(act_code_num[idx_seg]):
+    #         code = act_code_hat[idx_seg,idx_code]
+    #         ch_tmp = channel_ang_hat[idx_seg,:,code,:].numpy()
+    #         plt.imsave('./channel_img/channel_seg%d_%d.png' % (idx_seg, code), np.abs(ch_tmp), cmap='viridis')
 
     # codewords stitching
     message_hat = codeword_stitch(args, act_code_hat, act_code_num, channel_ang_hat)
@@ -182,8 +182,3 @@ for idx_sim in range(num_sim):
 
     print('sim = %6d, code error prob= %6.6f, stitch error prob = %6.6f, average pe = %6.6f' % (idx_sim, pec, pes, pes_sum/(idx_sim+1)))
 assert False
-
-
-
-
-
